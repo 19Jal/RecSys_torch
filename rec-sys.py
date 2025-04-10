@@ -6,9 +6,13 @@ import torch.nn as nn
 import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
 
-# -- Use GPU if available
+# -- Use GPU if available --
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Read Dataset
+# -- Read & Analyze Dataset --
 df = pd.read_csv("ml-latest-small/ratings.csv")
 df.info()
+df.userId.nunique()
+df.movieId.nunique()
+df.rating.value_counts()
+df.shape()
