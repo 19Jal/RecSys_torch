@@ -5,7 +5,6 @@ from sklearn.metrics import root_mean_squared_error
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
-from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 from collections import defaultdict
 
