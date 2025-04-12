@@ -257,6 +257,13 @@ class MovieEnv:
         for _, row in data.iterrows():
             self.ratings[(row['userId'], row['movieId'])] = row['rating']
             self.user_history[row['userId']].append(row['movieId'])
+        
+        # Print sample ratings to debug
+        sample_size = min(5, len(self.ratings))
+        sample_items = list(self.ratings.items())[:sample_size]
+        print(f"Sample ratings data (first {sample_size} entries):")
+        for (user, movie), rating in sample_items:
+            print(f"User {user}, Movie {movie}, Rating {rating}")
     
     def reset(self, user_id=None):
         if user_id is None:
@@ -270,13 +277,18 @@ class MovieEnv:
     def step(self, movie_id):
         # Calculate reward based on actual rating if available
         rating_key = (self.current_user, movie_id)
+        
         if rating_key in self.ratings:
             # Convert rating scale (1-5) to reward (-1 to 1)
             rating = self.ratings[rating_key]
             reward = (rating - 3) / 2  # Maps 1->-1, 3->0, 5->1
+            # Print debug information occasionally
+            if np.random.random() < 0.01:  # 1% chance to print
+                print(f"DEBUG: User {self.current_user}, Movie {movie_id}, Rating {rating}, Reward {reward}")
         else:
-            # No rating available, assume neutral
-            reward = 0
+            # No rating available, assume neutral with small negative bias 
+            # (slight penalty for recommending unwatched items)
+            reward = -0.1
             
         # In a full implementation, you would update user state here
         # For simplicity, we'll keep the same user state
@@ -321,16 +333,14 @@ agent = DQNAgent(
 )
 
 # -- Training Loop --
-n_episodes = 500
+n_episodes = 1000
 update_target_every = 10
-print_every = 100 #Print per episodes
-total_reward = 0
+print_every = 100
+rewards = []  # Track all rewards
 losses = []
 
 writer = SummaryWriter()
 
-print(f"\nTraining on: {device}")
-print("Starting training loop...")
 for episode in range(n_episodes):
     # Pick a random user
     user_id = np.random.randint(0, n_users)
@@ -348,15 +358,20 @@ for episode in range(n_episodes):
     # Take the action and observe next state and reward
     next_state, reward, done = env.step(action)
     
+    # Debugging: Print raw reward values
+    if episode < 5 or episode % (print_every // 2) == 0:
+        print(f"Debug - Episode {episode}, User {user_id}, Movie {action}, Raw reward: {reward}")
+    
     # Store in replay buffer
     replay_buffer.add(state, action, reward, next_state, done)
+    
+    # Add reward to list for tracking
+    rewards.append(reward)
     
     # Train the agent
     loss = agent.train()
     if loss > 0:
         losses.append(loss)
-    
-    total_reward += reward
     
     # Update target network
     if episode % update_target_every == 0:
@@ -364,12 +379,11 @@ for episode in range(n_episodes):
     
     # Print progress
     if episode % print_every == 0:
-        avg_reward = total_reward / print_every if episode > 0 else total_reward
+        avg_reward = np.mean(rewards[-print_every:]) if len(rewards) >= print_every else np.mean(rewards)
         avg_loss = np.mean(losses) if losses else 0
         print(f"Episode: {episode}, Avg Reward: {avg_reward:.4f}, Avg Loss: {avg_loss:.4f}, Epsilon: {agent.epsilon:.4f}")
         writer.add_scalar('Avg_Reward', avg_reward, episode)
         writer.add_scalar('Avg_Loss', avg_loss, episode)
-        total_reward = 0
         losses = []
 
 # -- Evaluation --
