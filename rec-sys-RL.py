@@ -333,12 +333,14 @@ agent = DQNAgent(
 )
 
 # -- Training Loop --
-n_episodes = 1000
+n_episodes = 500
 update_target_every = 10
-print_every = 100
+print_every = 10
 rewards = []  # Track all rewards
 losses = []
+losses_list = []
 
+print(f"Training on: {device}")
 writer = SummaryWriter()
 
 for episode in range(n_episodes):
@@ -359,7 +361,9 @@ for episode in range(n_episodes):
     next_state, reward, done = env.step(action)
     
     # Debugging: Print raw reward values
-    if episode < 5 or episode % (print_every // 2) == 0:
+    #if episode < 5 or episode % (print_every // 2) == 0:
+    #    print(f"Debug - Episode {episode}, User {user_id}, Movie {action}, Raw reward: {reward}")
+    if reward > -0.1:
         print(f"Debug - Episode {episode}, User {user_id}, Movie {action}, Raw reward: {reward}")
     
     # Store in replay buffer
@@ -381,10 +385,19 @@ for episode in range(n_episodes):
     if episode % print_every == 0:
         avg_reward = np.mean(rewards[-print_every:]) if len(rewards) >= print_every else np.mean(rewards)
         avg_loss = np.mean(losses) if losses else 0
-        print(f"Episode: {episode}, Avg Reward: {avg_reward:.4f}, Avg Loss: {avg_loss:.4f}, Epsilon: {agent.epsilon:.4f}")
+        print(f"Episode: {episode}, Avg Loss: {avg_loss:.4f}, Epsilon: {agent.epsilon:.4f}")
         writer.add_scalar('Avg_Reward', avg_reward, episode)
         writer.add_scalar('Avg_Loss', avg_loss, episode)
         losses = []
+        losses_list.append(avg_loss) 
+
+# -- Plot Loss
+plt.figure()
+plt.plot(losses_list)
+plt.xlabel('Step')
+plt.ylabel('Loss')
+plt.title('Loss Over Time')
+plt.show()
 
 # -- Evaluation --
 def evaluate_recommendations(model, valid_data, top_k=10):
